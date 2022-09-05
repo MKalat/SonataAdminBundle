@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Sonata\AdminBundle\Command;
 
 use Sonata\AdminBundle\Admin\Pool;
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -22,9 +23,12 @@ use Symfony\Component\Console\Output\OutputInterface;
 /**
  * @author Thomas Rabaix <thomas.rabaix@sonata-project.org>
  */
+#[AsCommand(name: 'sonata:admin:explain', description: 'Explain an admin service')]
 final class ExplainAdminCommand extends Command
 {
+    // TODO: Remove static properties when support for Symfony < 5.4 is dropped.
     protected static $defaultName = 'sonata:admin:explain';
+    protected static $defaultDescription = 'Explain an admin service';
 
     private Pool $pool;
 
@@ -40,9 +44,12 @@ final class ExplainAdminCommand extends Command
 
     public function configure(): void
     {
-        $this->setDescription('Explain an admin service');
+        \assert(null !== static::$defaultDescription);
 
-        $this->addArgument('admin', InputArgument::REQUIRED, 'The admin service id');
+        $this
+            // TODO: Remove setDescription when support for Symfony < 5.4 is dropped.
+            ->setDescription(static::$defaultDescription)
+            ->addArgument('admin', InputArgument::REQUIRED, 'The admin service id');
     }
 
     public function execute(InputInterface $input, OutputInterface $output): int

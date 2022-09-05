@@ -45,6 +45,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\HttpKernelInterface;
 use Symfony\Component\PropertyAccess\PropertyAccess;
 use Symfony\Component\PropertyAccess\PropertyPath;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
@@ -69,6 +70,7 @@ class CRUDController extends AbstractController
      * The related Admin class.
      *
      * @var AdminInterface<object>
+     *
      * @phpstan-var AdminInterface<T>
      *
      * @psalm-suppress PropertyNotSetInConstructor
@@ -94,6 +96,8 @@ class CRUDController extends AbstractController
             'sonata.admin.admin_exporter' => '?'.AdminExporter::class,
             'sonata.admin.security.acl_user_manager' => '?'.AdminAclUserManagerInterface::class,
 
+            'controller_resolver' => 'controller_resolver',
+            'http_kernel' => HttpKernelInterface::class,
             'logger' => '?'.LoggerInterface::class,
             'translator' => TranslatorInterface::class,
         ] + parent::getSubscribedServices();
@@ -147,6 +151,8 @@ class CRUDController extends AbstractController
      * Execute a batch delete.
      *
      * @throws AccessDeniedException If access is not granted
+     *
+     * @phpstan-param ProxyQueryInterface<T> $query
      */
     public function batchActionDelete(ProxyQueryInterface $query): Response
     {
@@ -439,15 +445,26 @@ class CRUDController extends AbstractController
             throw new \RuntimeException('The action is not defined');
         }
 
-        $batchActions = $this->admin->getBatchActions();
-        if (!\array_key_exists($action, $batchActions)) {
-            throw new \RuntimeException(sprintf('The `%s` batch action is not defined', $action));
+        $camelizedAction = InflectorFactory::create()->build()->classify($action);
+
+        try {
+            $batchActionExecutable = $this->getBatchActionExecutable($action);
+        } catch (\Throwable $error) {
+            $finalAction = sprintf('batchAction%s', $camelizedAction);
+            throw new \RuntimeException(sprintf('A `%s::%s` method must be callable or create a `controller` configuration for your batch action.', $this->admin->getBaseControllerName(), $finalAction), 0, $error);
         }
 
-        $camelizedAction = InflectorFactory::create()->build()->classify($action);
+        $batchAction = $this->admin->getBatchActions()[$action];
+
         $isRelevantAction = sprintf('batchAction%sIsRelevant', $camelizedAction);
 
         if (method_exists($this, $isRelevantAction)) {
+            // NEXT_MAJOR: Remove if above in sonata-project/admin-bundle 5.0
+            @trigger_error(sprintf(
+                'The is relevant hook via "%s()" is deprecated since sonata-project/admin-bundle 4.12'
+                .' and will not be call in 5.0. Move the logic to your controller.',
+                $isRelevantAction,
+            ), \E_USER_DEPRECATED);
             $nonRelevantMessage = $this->$isRelevantAction($idx, $allElements, $forwardedRequest);
         } else {
             $nonRelevantMessage = 0 !== \count($idx) || $allElements; // at least one item is selected
@@ -469,18 +486,17 @@ class CRUDController extends AbstractController
             return $this->redirectToList();
         }
 
-        $askConfirmation = $batchActions[$action]['ask_confirmation'] ?? true;
+        $askConfirmation = $batchAction['ask_confirmation'] ?? true;
 
         if (true === $askConfirmation && 'ok' !== $confirmation) {
-            $actionLabel = $batchActions[$action]['label'];
-            $batchTranslationDomain = $batchActions[$action]['translation_domain'] ??
+            $actionLabel = $batchAction['label'];
+            $batchTranslationDomain = $batchAction['translation_domain'] ??
                 $this->admin->getTranslationDomain();
 
             $formView = $datagrid->getForm()->createView();
             $this->setFormTheme($formView, $this->admin->getFilterTheme());
 
-            $template = $batchActions[$action]['template']
-                ?? $this->templateRegistry->getTemplate('batch_confirmation');
+            $template = $batchAction['template'] ?? $this->templateRegistry->getTemplate('batch_confirmation');
 
             return $this->renderWithExtraParams($template, [
                 'action' => 'list',
@@ -491,12 +507,6 @@ class CRUDController extends AbstractController
                 'data' => $data,
                 'csrf_token' => $this->getCsrfToken('sonata.batch'),
             ]);
-        }
-
-        // execute the action, batchActionXxxxx
-        $finalAction = sprintf('batchAction%s', $camelizedAction);
-        if (!method_exists($this, $finalAction)) {
-            throw new \RuntimeException(sprintf('A `%s::%s` method must be callable', static::class, $finalAction));
         }
 
         $query = $datagrid->getQuery();
@@ -524,7 +534,7 @@ class CRUDController extends AbstractController
             return $this->redirectToList();
         }
 
-        return $this->$finalAction($query, $forwardedRequest);
+        return \call_user_func($batchActionExecutable, $query, $forwardedRequest);
     }
 
     /**
@@ -572,7 +582,6 @@ class CRUDController extends AbstractController
                 /** @phpstan-var T $submittedObject */
                 $submittedObject = $form->getData();
                 $this->admin->setSubject($submittedObject);
-                $this->admin->checkAccess('create', $submittedObject);
 
                 try {
                     $newObject = $this->admin->create($submittedObject);
@@ -680,10 +689,10 @@ class CRUDController extends AbstractController
     {
         $object = $this->assertObjectExists($request, true);
         \assert(null !== $object);
+        $this->admin->checkAccess('history', $object);
+
         $objectId = $this->admin->getNormalizedIdentifier($object);
         \assert(null !== $objectId);
-
-        $this->admin->checkAccess('history', $object);
 
         $manager = $this->container->get('sonata.admin.audit.manager');
         \assert($manager instanceof AuditManagerInterface);
@@ -719,10 +728,10 @@ class CRUDController extends AbstractController
     {
         $object = $this->assertObjectExists($request, true);
         \assert(null !== $object);
+        $this->admin->checkAccess('historyViewRevision', $object);
+
         $objectId = $this->admin->getNormalizedIdentifier($object);
         \assert(null !== $objectId);
-
-        $this->admin->checkAccess('historyViewRevision', $object);
 
         $manager = $this->container->get('sonata.admin.audit.manager');
         \assert($manager instanceof AuditManagerInterface);
@@ -1476,6 +1485,36 @@ class CRUDController extends AbstractController
                 $this->admin->toString($object)
             ));
         }
+    }
+
+    private function getBatchActionExecutable(string $action): callable
+    {
+        $batchActions = $this->admin->getBatchActions();
+        if (!\array_key_exists($action, $batchActions)) {
+            throw new \RuntimeException(sprintf('The `%s` batch action is not defined', $action));
+        }
+
+        $controller = $batchActions[$action]['controller'] ?? sprintf(
+            '%s::%s',
+            $this->admin->getBaseControllerName(),
+            sprintf('batchAction%s', InflectorFactory::create()->build()->classify($action))
+        );
+
+        // This will throw an exception when called so we know if it's possible or not to call the controller.
+        $exists = false !== $this->container
+            ->get('controller_resolver')
+            ->getController(new Request([], [], ['_controller' => $controller]));
+
+        if (!$exists) {
+            throw new \RuntimeException(sprintf('Controller for action `%s` cannot be resolved', $action));
+        }
+
+        return function (ProxyQueryInterface $query, Request $request) use ($controller) {
+            $request->attributes->set('_controller', $controller);
+            $request->attributes->set('query', $query);
+
+            return $this->container->get('http_kernel')->handle($request, HttpKernelInterface::SUB_REQUEST);
+        };
     }
 
     /**

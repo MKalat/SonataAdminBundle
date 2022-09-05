@@ -41,6 +41,7 @@ final class FormMapper extends BaseGroupedMapper implements BlockFormMapper
 
     /**
      * @var AdminInterface<object>
+     *
      * @phpstan-var AdminInterface<T>
      */
     private AdminInterface $admin;
@@ -186,11 +187,19 @@ final class FormMapper extends BaseGroupedMapper implements BlockFormMapper
     }
 
     /**
+     * NEXT_MAJOR: Remove this method.
+     *
      * @param class-string<FormTypeInterface>|null $type
      * @param array<string, mixed>                 $options
      */
     public function create(string $name, ?string $type = null, array $options = []): FormBuilderInterface
     {
+        @trigger_error(sprintf(
+            'The "%s()" method is deprecated since sonata-project/admin-bundle version 4.15 and will be'
+            .' removed in 5.0 version.',
+            __METHOD__
+        ), \E_USER_DEPRECATED);
+
         return $this->formBuilder->create($name, $type, $options);
     }
 

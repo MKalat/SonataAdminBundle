@@ -13,6 +13,9 @@ on:
             - 5.x
     pull_request:
 
+permissions:
+    contents: read
+
 jobs:
     test:
         name: PHP ${{ matrix.php-version }} + ${{ matrix.dependencies }} + ${{ matrix.variant }}
@@ -42,13 +45,20 @@ jobs:
                     - php-version: '8.1'
                       dependencies: highest
                       allowed-to-fail: false
-                      symfony-require: 4.4.*
-                      variant: symfony/symfony:"4.4.*"
+                      variant: sonata-project/block-bundle:"5.x-dev as 4.999"
                     - php-version: '8.1'
                       dependencies: highest
                       allowed-to-fail: false
-                      symfony-require: 5.3.*
-                      variant: symfony/symfony:"5.3.*"
+                      variant: sonata-project/form-extensions:"2.x-dev as 1.999"
+                    - php-version: '8.1'
+                      dependencies: highest
+                      allowed-to-fail: false
+                      variant: sonata-project/intl-bundle:"3.x-dev as 2.999"
+                    - php-version: '8.1'
+                      dependencies: highest
+                      allowed-to-fail: false
+                      symfony-require: 4.4.*
+                      variant: symfony/symfony:"4.4.*"
                     - php-version: '8.1'
                       dependencies: highest
                       allowed-to-fail: false
@@ -59,6 +69,11 @@ jobs:
                       allowed-to-fail: false
                       symfony-require: 6.0.*
                       variant: symfony/symfony:"6.0.*"
+                    - php-version: '8.1'
+                      dependencies: highest
+                      allowed-to-fail: false
+                      symfony-require: 6.1.*
+                      variant: symfony/symfony:"6.1.*"
 
         steps:
             - name: Checkout
@@ -76,7 +91,9 @@ jobs:
 
             - name: Globally install symfony/flex
               if: matrix.symfony-require != ''
-              run: composer global require --no-progress --no-scripts --no-plugins symfony/flex
+              run: |
+                  composer global config --no-plugins allow-plugins.symfony/flex true
+                  composer global require --no-progress --no-scripts --no-plugins symfony/flex
 
             - name: Install variant
               if: matrix.variant != 'normal' && !startsWith(matrix.variant, 'symfony/symfony')

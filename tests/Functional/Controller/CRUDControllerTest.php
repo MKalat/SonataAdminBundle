@@ -13,7 +13,6 @@ declare(strict_types=1);
 
 namespace Sonata\AdminBundle\Tests\Functional\Controller;
 
-use Sonata\AdminBundle\Tests\App\AppKernel;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -44,7 +43,25 @@ final class CRUDControllerTest extends WebTestCase
         );
         static::assertCount(
             1,
-            $crawler->filter('p.help-block.sonata-ba-field-help:contains("Help me!")')
+            $crawler->filter('.help-block.sonata-ba-field-help:contains("Help me!")')
+        );
+    }
+
+    /**
+     * https://github.com/sonata-project/SonataAdminBundle/issues/6904.
+     */
+    public function testCreateModelAutoCompleteNotPassingSubclassParameter(): void
+    {
+        $subclass = uniqid('subclass');
+        $client = static::createClient();
+        $crawler = $client->request(Request::METHOD_GET, '/admin/tests/app/foo/create?subclass='.$subclass);
+
+        static::assertSame(Response::HTTP_OK, $client->getResponse()->getStatusCode());
+
+        static::assertStringNotContainsString(
+            $subclass,
+            $crawler->filter('div[id$=_referenced]')->text(),
+            'The subclass parameter must no be present in referenced model auto complete ajax call'
         );
     }
 
@@ -83,6 +100,29 @@ final class CRUDControllerTest extends WebTestCase
         static::assertSame(Response::HTTP_OK, $client->getResponse()->getStatusCode());
     }
 
+    public function testBatchAction(): void
+    {
+        $client = static::createClient();
+
+        $crawler = $client->request(Request::METHOD_GET, '/admin/tests/app/foo/list');
+
+        static::assertSame(Response::HTTP_OK, $client->getResponse()->getStatusCode());
+
+        $csrfToken = $crawler->selectButton('OK')->form()->getValues()['_sonata_csrf_token'];
+
+        $client->request(
+            Request::METHOD_POST,
+            '/admin/tests/app/foo/batch',
+            [
+                'data' => json_encode(['action' => 'other', 'all_elements' => true]),
+                '_sonata_csrf_token' => $csrfToken,
+            ]
+        );
+
+        static::assertSame(Response::HTTP_OK, $client->getResponse()->getStatusCode());
+        static::assertSame('Other Controller', $client->getResponse()->getContent());
+    }
+
     /**
      * @phpstan-return iterable<array-key, array{string}>
      */
@@ -99,11 +139,7 @@ final class CRUDControllerTest extends WebTestCase
             ['/admin/tests/app/foo-with-custom-controller/test_id/show'],
             ['/admin/tests/app/foo-with-custom-controller/test_id/edit'],
             ['/admin/tests/app/foo/test_id/bar/list'],
+            ['/admin/tests/app/bar/test_id/baz/list'],
         ];
-    }
-
-    protected static function getKernelClass(): string
-    {
-        return AppKernel::class;
     }
 }

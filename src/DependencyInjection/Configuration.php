@@ -32,6 +32,7 @@ use Symfony\Component\Config\Definition\ConfigurationInterface;
  * @phpstan-import-type Item from Pool
  *
  * NEXT_MAJOR: Remove the default_label_catalogue key.
+ *
  * @phpstan-type SonataAdminConfigurationOptions = array{
  *     confirm_exit: bool,
  *     default_admin_route: string,
@@ -55,7 +56,6 @@ use Symfony\Component\Config\Definition\ConfigurationInterface;
  *     use_select2: bool,
  *     use_stickyforms: bool,
  * }
- *
  * @phpstan-type SonataAdminConfiguration = array{
  *     assets: array{
  *         extra_javascripts: list<string>,
@@ -201,9 +201,7 @@ final class Configuration implements ConfigurationInterface
                                 ->performNoDeepMerging()
                                 ->beforeNormalization()
                                     ->ifString()
-                                    ->then(static function (string $value): array {
-                                        return [$value];
-                                    })
+                                    ->then(static fn (string $value): array => [$value])
                                 ->end()
                                 ->prototype('scalar')->end()
                             ->end()
@@ -258,9 +256,7 @@ final class Configuration implements ConfigurationInterface
                             ->defaultValue('show')
                             ->info('Perhaps one of the three options: show, fade, hide.')
                             ->validate()
-                                ->ifTrue(static function (string $v): bool {
-                                    return !\in_array($v, ['show', 'fade', 'hide'], true);
-                                })
+                                ->ifTrue(static fn (string $v): bool => !\in_array($v, ['show', 'fade', 'hide'], true))
                                 ->thenInvalid('Configuration value of "global_search.empty_boxes" must be one of show, fade or hide.')
                             ->end()
                         ->end()
@@ -619,6 +615,7 @@ final class Configuration implements ConfigurationInterface
                         ->arrayNode('stylesheets')
                             ->defaultValue([
                                 'bundles/sonataadmin/app.css',
+                                'bundles/sonataform/app.css',
                             ])
                             ->prototype('scalar')->end()
                         ->end()
@@ -635,6 +632,7 @@ final class Configuration implements ConfigurationInterface
                         ->arrayNode('javascripts')
                             ->defaultValue([
                                 'bundles/sonataadmin/app.js',
+                                'bundles/sonataform/app.js',
                             ])
                             ->prototype('scalar')->end()
                         ->end()

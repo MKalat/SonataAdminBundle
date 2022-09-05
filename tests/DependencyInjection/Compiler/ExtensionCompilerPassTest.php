@@ -22,6 +22,7 @@ use Sonata\AdminBundle\Admin\AdminExtensionInterface;
 use Sonata\AdminBundle\Admin\AdminInterface;
 use Sonata\AdminBundle\DependencyInjection\Compiler\ExtensionCompilerPass;
 use Sonata\AdminBundle\DependencyInjection\SonataAdminExtension;
+use Sonata\BlockBundle\Cache\HttpCacheHandler;
 use Sonata\BlockBundle\DependencyInjection\SonataBlockExtension;
 use Symfony\Bundle\FrameworkBundle\Translation\Translator;
 use Symfony\Component\Config\FileLocatorInterface;
@@ -30,6 +31,8 @@ use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Session\Session;
+use Symfony\Component\HttpKernel\Controller\ControllerResolverInterface;
+use Symfony\Component\HttpKernel\HttpKernelInterface;
 use Symfony\Component\HttpKernel\KernelInterface;
 use Symfony\Component\PropertyAccess\PropertyAccessor;
 use Symfony\Component\Routing\RouterInterface;
@@ -204,6 +207,7 @@ final class ExtensionCompilerPassTest extends TestCase
 
     /**
      * @doesNotPerformAssertions
+     *
      * @covers \Sonata\AdminBundle\DependencyInjection\Compiler\ExtensionCompilerPass::process
      */
     public function testProcessWithInvalidAdminId(): void
@@ -261,12 +265,12 @@ final class ExtensionCompilerPassTest extends TestCase
         static::assertInstanceOf(AdminInterface::class, $def);
 
         $extensions = $def->getExtensions();
-        static::assertCount(5, $extensions);
+        static::assertCount(6, $extensions);
 
         static::assertSame($historyExtension, $extensions[0]);
-        static::assertSame($publishExtension, $extensions[2]);
-        static::assertSame($securityExtension, $extensions[3]);
-        static::assertSame($globalExtension, $extensions[4]);
+        static::assertSame($securityExtension, $extensions[1]);
+        static::assertSame($publishExtension, $extensions[3]);
+        static::assertSame($globalExtension, $extensions[5]);
 
         $def = $container->get('sonata_article_admin');
         static::assertInstanceOf(AdminInterface::class, $def);
@@ -284,13 +288,13 @@ final class ExtensionCompilerPassTest extends TestCase
         static::assertInstanceOf(AdminInterface::class, $def);
 
         $extensions = $def->getExtensions();
-        static::assertCount(6, $extensions);
+        static::assertCount(7, $extensions);
 
         static::assertSame($historyExtension, $extensions[0]);
-        static::assertSame($securityExtension, $extensions[2]);
-        static::assertSame($filterExtension, $extensions[3]);
-        static::assertSame($orderExtension, $extensions[4]);
-        static::assertSame($globalExtension, $extensions[5]);
+        static::assertSame($securityExtension, $extensions[3]);
+        static::assertSame($filterExtension, $extensions[4]);
+        static::assertSame($orderExtension, $extensions[5]);
+        static::assertSame($globalExtension, $extensions[6]);
     }
 
     /**
@@ -319,7 +323,7 @@ final class ExtensionCompilerPassTest extends TestCase
      */
     protected function getConfig(): array
     {
-        $config = [
+        return [
             'extensions' => [
                 'sonata_extension_global' => [
                     'global' => true,
@@ -340,12 +344,11 @@ final class ExtensionCompilerPassTest extends TestCase
                     'implements' => [Publishable::class],
                     'priority' => -128,
                 ],
+                'sonata_extension_post' => [
+                    'uses' => [TimestampableTrait::class],
+                ],
             ],
         ];
-
-        $config['extensions']['sonata_extension_post']['uses'] = [TimestampableTrait::class];
-
-        return $config;
     }
 
     private function getContainer(): ContainerBuilder
@@ -398,6 +401,12 @@ final class ExtensionCompilerPassTest extends TestCase
         $container
             ->register('security.authorization_checker')
             ->setClass(AuthorizationCheckerInterface::class);
+        $container
+            ->register('controller_resolver')
+            ->setClass(ControllerResolverInterface::class);
+        $container
+            ->register(HttpKernelInterface::class)
+            ->setClass(HttpKernelInterface::class);
 
         // Add admin definition's
         $container
@@ -439,6 +448,10 @@ final class ExtensionCompilerPassTest extends TestCase
             ->setPublic(true)
             ->setClass($extensionClass);
         $container
+            ->register('sonata_extension_post')
+            ->setPublic(true)
+            ->setClass($extensionClass);
+        $container
             ->register('sonata_extension_timestamp')
             ->setPublic(true)
             ->setClass($extensionClass);
@@ -463,7 +476,13 @@ final class ExtensionCompilerPassTest extends TestCase
             ->setClass(FileLocatorInterface::class);
 
         $blockExtension = new SonataBlockExtension();
-        $blockExtension->load([], $container);
+        // TODO: remove "http_cache" parameter when support for SonataBlockBundle 4 is dropped.
+        $blockExtension->load(
+            [
+                'sonata_block' => class_exists(HttpCacheHandler::class) ? ['http_cache' => false] : [],
+            ],
+            $container
+        );
 
         return $container;
     }
@@ -473,12 +492,12 @@ final class ExtensionCompilerPassTest extends TestCase
 class MockAdmin extends AbstractAdmin
 {
 }
-
 trait TimestampableTrait
 {
 }
 class Post
 {
+    use TimestampableTrait;
 }
 interface Publishable
 {

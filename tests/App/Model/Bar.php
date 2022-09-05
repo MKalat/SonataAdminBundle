@@ -19,10 +19,13 @@ final class Bar implements EntityInterface
 
     private ?Foo $foo = null;
 
-    public function __construct(string $id, ?Foo $foo = null)
+    private ?Baz $baz = null;
+
+    public function __construct(string $id, ?Foo $foo = null, ?Baz $baz = null)
     {
         $this->id = $id;
         $this->foo = $foo;
+        $this->baz = $baz;
     }
 
     public function getId(): string
@@ -33,5 +36,10 @@ final class Bar implements EntityInterface
     public function getFoo(): ?Foo
     {
         return $this->foo;
+    }
+
+    public function getBaz(): ?Baz
+    {
+        return $this->baz;
     }
 }

@@ -15,8 +15,9 @@ namespace Sonata\AdminBundle\Form\DataTransformer;
 
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
-use Doctrine\Common\Util\ClassUtils;
+use Sonata\AdminBundle\BCLayer\BCHelper;
 use Sonata\AdminBundle\Model\ModelManagerInterface;
+use Sonata\AdminBundle\Model\ProxyResolverInterface;
 use Symfony\Component\Form\DataTransformerInterface;
 
 /**
@@ -42,6 +43,7 @@ final class ModelToIdPropertyTransformer implements DataTransformerInterface
 
     /**
      * @var string|string[]
+     *
      * @phpstan-var P
      */
     private $property;
@@ -50,6 +52,7 @@ final class ModelToIdPropertyTransformer implements DataTransformerInterface
 
     /**
      * @var callable|null
+     *
      * @phpstan-var null|callable(T, P): string
      */
     private $toStringCallback;
@@ -83,8 +86,8 @@ final class ModelToIdPropertyTransformer implements DataTransformerInterface
      *
      * @return Collection<int|string, object>|object|null
      *
-     * @psalm-param int|string|(array{_labels?: array<string>}&array<int|string>)|null $value
      * @phpstan-param int|string|array<int|string|array<string>>|null $value
+     * @psalm-param int|string|(array{_labels?: array<string>}&array<int|string>)|null $value
      * @phpstan-return Collection<array-key, T>|T|null
      */
     public function reverseTransform($value)
@@ -122,10 +125,8 @@ final class ModelToIdPropertyTransformer implements DataTransformerInterface
      * @return array<string|int, int|string|array<string>>
      *
      * @phpstan-param T|array<T>|\Traversable<T>|null $value
-     * @psalm-return array{_labels?: array<string>}&array<int|string>
      * @phpstan-return array<int|string|array<string>>
-     *
-     * @psalm-suppress PossiblyInvalidArrayAssignment @see https://github.com/vimeo/psalm/issues/5891
+     * @psalm-return array{_labels?: array<string>}&array<int|string>
      */
     public function transform($value): array
     {
@@ -170,6 +171,8 @@ final class ModelToIdPropertyTransformer implements DataTransformerInterface
             throw new \RuntimeException('Please define "property" parameter.');
         }
 
+        $labels = [];
+
         /** @phpstan-var array<T>|\Traversable<T> $collection */
         foreach ($collection as $model) {
             $id = current($this->modelManager->getIdentifierValues($model));
@@ -179,14 +182,23 @@ final class ModelToIdPropertyTransformer implements DataTransformerInterface
             } elseif (method_exists($model, '__toString')) {
                 $label = $model->__toString();
             } else {
+                $class = $this->modelManager instanceof ProxyResolverInterface
+                    ? $this->modelManager->getRealClass($model)
+                    // NEXT_MAJOR: Change to `\get_class`
+                    : BCHelper::getClass($model);
+
                 throw new \RuntimeException(sprintf(
                     'Unable to convert the entity %s to String, entity must have a \'__toString()\' method defined',
-                    ClassUtils::getClass($model)
+                    $class
                 ));
             }
 
             $result[] = $id;
-            $result['_labels'][] = $label;
+            $labels[] = $label;
+        }
+
+        if ([] !== $labels) {
+            $result['_labels'] = $labels;
         }
 
         return $result;

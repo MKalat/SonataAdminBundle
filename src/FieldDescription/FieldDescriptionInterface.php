@@ -34,6 +34,7 @@ use Symfony\Component\PropertyAccess\PropertyPathInterface;
  *     type?: string,
  *     virtual_field?: bool
  * }&array<string, mixed>
+ *
  * @phpstan-type FieldDescriptionOptions = array<string, mixed>
  */
 interface FieldDescriptionInterface

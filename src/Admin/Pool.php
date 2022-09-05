@@ -60,12 +60,14 @@ final class Pool
 
     /**
      * @var array<string, array<string, mixed>>
+     *
      * @phpstan-var array<string, Group>
      */
     private array $adminGroups = [];
 
     /**
      * @var array<string, string[]>
+     *
      * @phpstan-var array<class-string, string[]>
      */
     private array $adminClasses = [];

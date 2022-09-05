@@ -15,6 +15,7 @@ namespace Sonata\AdminBundle\Tests\App;
 
 use Knp\Bundle\MenuBundle\KnpMenuBundle;
 use Sonata\AdminBundle\SonataAdminBundle;
+use Sonata\BlockBundle\Cache\HttpCacheHandler;
 use Sonata\BlockBundle\SonataBlockBundle;
 use Sonata\Doctrine\Bridge\Symfony\SonataDoctrineBundle;
 use Sonata\Form\Bridge\Symfony\SonataFormBundle;
@@ -33,11 +34,6 @@ use Symfony\Component\Security\Http\Authentication\AuthenticatorManager;
 final class AppKernel extends Kernel
 {
     use MicroKernelTrait;
-
-    public function __construct()
-    {
-        parent::__construct('test', false);
-    }
 
     public function registerBundles(): iterable
     {
@@ -91,6 +87,7 @@ final class AppKernel extends Kernel
             'translator' => [
                 'default_path' => '%kernel.project_dir%/translations',
             ],
+            'http_method_override' => false,
         ];
 
         // TODO: Remove else case when dropping support of Symfony < 5.3
@@ -118,12 +115,15 @@ final class AppKernel extends Kernel
 
         $containerBuilder->loadFromExtension('twig', [
             'default_path' => sprintf('%s/templates', $this->getProjectDir()),
-            'strict_variables' => '%kernel.debug%',
+            'strict_variables' => true,
             'exception_controller' => null,
             'form_themes' => ['@SonataAdmin/Form/form_admin_fields.html.twig'],
         ]);
 
         $loader->load(sprintf('%s/config/services.yml', $this->getProjectDir()));
+
+        // TODO: Remove when support for SonataBlockBundle 4 is dropped.
+        $containerBuilder->loadFromExtension('sonata_block', class_exists(HttpCacheHandler::class) ? ['http_cache' => false] : []);
     }
 
     private function getBaseDir(): string

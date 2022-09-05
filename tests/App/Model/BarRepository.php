@@ -23,12 +23,10 @@ final class BarRepository implements RepositoryInterface
      */
     private array $elements;
 
-    public function __construct(FooRepository $fooRepository)
+    public function __construct(FooRepository $fooRepository, BazRepository $bazRepository)
     {
-        $fooRepository->byId('test_id');
-
         $this->elements = [
-            'test_id' => new Bar('test_id', $fooRepository->byId('test_id')),
+            'test_id' => new Bar('test_id', $fooRepository->byId('test_id'), $bazRepository->byId('test_id')),
         ];
     }
 

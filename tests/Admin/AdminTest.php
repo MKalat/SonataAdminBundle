@@ -329,6 +329,7 @@ final class AdminTest extends TestCase
 
     /**
      * @phpstan-return iterable<array-key, array{class-string, string}>
+     *
      * @psalm-suppress InvalidReturnType, InvalidReturnStatement
      */
     public function provideGetBaseRoutePattern(): iterable
@@ -483,6 +484,7 @@ final class AdminTest extends TestCase
 
     /**
      * @phpstan-return iterable<array-key, array{class-string, string}>
+     *
      * @psalm-suppress InvalidReturnType, InvalidReturnStatement
      */
     public function provideGetBaseRouteName(): iterable
@@ -632,6 +634,7 @@ final class AdminTest extends TestCase
     public function testToString(): void
     {
         $admin = new PostAdmin();
+        $admin->setModelManager($this->createStub(ModelManagerInterface::class));
 
         $s = new \stdClass();
 
@@ -648,6 +651,7 @@ final class AdminTest extends TestCase
         }
 
         $admin = new PostAdmin();
+        $admin->setModelManager($this->createStub(ModelManagerInterface::class));
 
         // To string method is implemented, but returns null
         $s = new FooToStringNull();
@@ -680,6 +684,7 @@ final class AdminTest extends TestCase
     {
         $admin = new PostAdmin();
         $admin->setModelClass(Post::class);
+        $admin->setModelManager($this->createStub(ModelManagerInterface::class));
 
         static::assertFalse($admin->hasSubClass('test'));
         static::assertFalse($admin->hasActiveSubClass());
@@ -2013,6 +2018,7 @@ final class AdminTest extends TestCase
      * @param class-string $objFqn
      *
      * @covers \Sonata\AdminBundle\Admin\AbstractAdmin::getDashboardActions
+     *
      * @dataProvider provideGetBaseRouteName
      */
     public function testDefaultDashboardActionsArePresent(string $objFqn, string $expected): void
@@ -2199,22 +2205,34 @@ final class AdminTest extends TestCase
 
         // Workaround for static analysis
         $postAdminChildAdmin = $postAdmin->getCurrentLeafChildAdmin();
+        $commentAdminChildAdmin = $commentAdmin->getCurrentLeafChildAdmin();
+        $commentVoteAdminChildAdmin = $commentVoteAdmin->getCurrentLeafChildAdmin();
 
         static::assertNull($postAdminChildAdmin);
-        static::assertNull($commentAdmin->getCurrentLeafChildAdmin());
-        static::assertNull($commentVoteAdmin->getCurrentLeafChildAdmin());
+        static::assertNull($commentAdminChildAdmin);
+        static::assertNull($commentVoteAdminChildAdmin);
 
         $commentAdmin->setCurrentChild(true);
 
-        static::assertSame($commentAdmin, $postAdmin->getCurrentLeafChildAdmin());
-        static::assertNull($commentAdmin->getCurrentLeafChildAdmin());
-        static::assertNull($commentVoteAdmin->getCurrentLeafChildAdmin());
+        // Workaround for static analysis
+        $postAdminChildAdmin = $postAdmin->getCurrentLeafChildAdmin();
+        $commentAdminChildAdmin = $commentAdmin->getCurrentLeafChildAdmin();
+        $commentVoteAdminChildAdmin = $commentVoteAdmin->getCurrentLeafChildAdmin();
+
+        static::assertSame($commentAdmin, $postAdminChildAdmin);
+        static::assertNull($commentAdminChildAdmin);
+        static::assertNull($commentVoteAdminChildAdmin);
 
         $commentVoteAdmin->setCurrentChild(true);
 
-        static::assertSame($commentVoteAdmin, $postAdmin->getCurrentLeafChildAdmin());
-        static::assertSame($commentVoteAdmin, $commentAdmin->getCurrentLeafChildAdmin());
-        static::assertNull($commentVoteAdmin->getCurrentLeafChildAdmin());
+        // Workaround for static analysis
+        $postAdminChildAdmin = $postAdmin->getCurrentLeafChildAdmin();
+        $commentAdminChildAdmin = $commentAdmin->getCurrentLeafChildAdmin();
+        $commentVoteAdminChildAdmin = $commentVoteAdmin->getCurrentLeafChildAdmin();
+
+        static::assertSame($commentVoteAdmin, $postAdminChildAdmin);
+        static::assertSame($commentVoteAdmin, $commentAdminChildAdmin);
+        static::assertNull($commentVoteAdminChildAdmin);
     }
 
     public function testAdminAvoidInfiniteLoop(): void
@@ -2228,6 +2246,7 @@ final class AdminTest extends TestCase
         $admin->setModelClass(\stdClass::class);
         $admin->setSubject(new \stdClass());
 
+        $admin->setModelManager($this->createStub(ModelManagerInterface::class));
         $admin->setFormContractor(new FormContractor($formFactory, $registry));
 
         $admin->setShowBuilder(new ShowBuilder());

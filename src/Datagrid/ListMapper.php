@@ -48,6 +48,7 @@ final class ListMapper implements MapperInterface
 
     /**
      * @var AdminInterface<object>
+     *
      * @phpstan-var AdminInterface<T>
      */
     private AdminInterface $admin;

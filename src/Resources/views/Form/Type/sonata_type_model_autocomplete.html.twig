@@ -14,14 +14,14 @@ file that was distributed with this source code.
         {%- if disabled %} disabled="disabled"{% endif %}
         {%- if multiple %} multiple="multiple"{% endif %}
     >
-        {%- for idx, val  in value|filter((val, idx) => idx~'' != '_labels') -%}
+        {%- for idx, val in value|filter((val, idx) => idx~'' != '_labels') -%}
             <option value="{{ val }}" selected>{{ value['_labels'][idx] }}</option>
         {%- endfor -%}
     </select>
 
     <div id="{{ id }}_hidden_inputs_wrap">
         {% if multiple -%}
-            {%- for idx, val  in value|filter((val, idx) => idx~'' != '_labels') -%}
+            {%- for idx, val in value|filter((val, idx) => idx~'' != '_labels') -%}
                 <input type="hidden" name="{{ full_name }}[]" {%- if disabled %} disabled="disabled"{% endif %} value="{{ val }}">
             {%- endfor -%}
         {% else -%}
@@ -112,11 +112,6 @@ file that was distributed with this source code.
                                     '_sonata_admin': '{{ sonata_admin.admin.baseCodeRoute|e('js') }}',
                                 {% elseif admin_code %}
                                     '_sonata_admin': '{{ admin_code|e('js') }}',
-                                {% endif %}
-
-                                 // subclass
-                                {% if app.request.query.get('subclass') %}
-                                    'subclass': '{{ app.request.query.get('subclass') }}',
                                 {% endif %}
 
                                 {% if context == 'filter' %}
